@@ -46,6 +46,7 @@ Do NOT expand scoped re-reviews with this checklist. Default severity is `Minor`
 - Mocked owned internal modules or weakened existing test assertions?
 - Modified guardrail configs or added suppressions?
 - Introduced a flag-parameter wrong abstraction for premature DRY?
+- If `docs/glossary.md` exists, introduced any listed "aliases to avoid" or drifted from canonical project domain terms?
 - **Recurring defect (2nd+ time in repo)?** Explicitly propose promoting it to a mechanical lint/arch rule.
 
 ---
@@ -54,3 +55,11 @@ Do NOT expand scoped re-reviews with this checklist. Default severity is `Minor`
 - **Read-only roles (`scout`, `checker`, `tech-advisor`, `design-advisor`)**: Zero workspace side effects. Switch once to same-tier fallback; if unavailable, pause and inform user (never silently downgrade or skip Checker).
 - **Builder**: Inspect `git status` and `git diff` first. Keep clean commits that passed `verify:fast`; discard incomplete uncommitted mutations within the slice's file ownership back to `BASE` before retrying.
 - **Lead**: New session reads `.agent/plan.md` + `.agent/ledger.md` + `git log/status`, reconciles any committed-but-unlogged slice, and resumes without re-dispatching completed tasks.
+
+---
+
+## 6. Triggered Post-L Environment Retro (Proposal-Only)
+- **When to trigger**: Only after a bumpy L-level run (hit the 3-round breaker, repeated environment friction, or heavy navigation detours), right before cleaning `.agent/`. Skip for S/M and smooth L runs.
+- **Inputs**: `.agent/ledger.md`, reworked `task-*-report.md`, and key error excerpts from `.agent/logs/` (audit **process & repo friction**, not the final code diff).
+- **Check 3 areas**: (1) navigation gaps (`AGENTS.md` / `docs/ARCHITECTURE.md` pointers), (2) missing deterministic checks (`verify:fast` / lint / types), (3) recurring patterns to promote to mechanical rules or `docs/glossary.md`.
+- **Proposal-only**: Output at most 3–5 prioritized proposals; prefer deterministic checks/pointers over adding prose warnings to `AGENTS.md`. Never edit `AGENTS.md`, CI, or guardrails without explicit human approval.

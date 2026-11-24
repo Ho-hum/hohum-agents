@@ -43,7 +43,7 @@ Available default role keys: `scout`, `builder`, `builder-mech`, `checker`, `che
 
 ## 3. File-Based Handoffs
 
-Keep `.agent/` in `.gitignore` (ephemeral per feature) and long-term architecture truth in `AGENTS.md` (≤150 lines) + `docs/ARCHITECTURE.md` + `docs/adr/`:
+Keep `.agent/` in `.gitignore` (ephemeral per feature) and long-term architecture truth in `AGENTS.md` (≤150 lines) + `docs/ARCHITECTURE.md` + `docs/glossary.md` (project ubiquitous language: Term / Definition / Aliases to avoid; created by Lead when an M/L project designs core data models for the first time) + `docs/adr/`:
 
 ```text
 .agent/
@@ -71,3 +71,4 @@ Keep `.agent/` in `.gitignore` (ephemeral per feature) and long-term architectur
 - **Fix loop (cap = 3)**: Rounds 1–2 resume the original Builder (`--session-id`); Round 3 dispatches `builder-escalation` with brief + report file; past Round 3, trip the breaker → Lead adjudicates (with `tech-advisor` if structural) and logs `Ruling:`. Re-reviews are strictly scoped to the fix diff. `Minor` items go to `ledger.md` as `deferred minor`.
 - **Quota / 429 failure**: Treat as infra failure (does NOT consume the 3-round quality cap); switch at most once to a same-tier fallback. If unavailable, pause and inform the human—never silently downgrade Checker/Advisor or skip verification. Clean dirty Builder worktrees back to `BASE` before retrying.
 - **Stop & ask human ONLY on the 5 red lines** (irreversible/destructive, security-sensitive, external side-effects, broken plan where every path is a guess, or touching persistent schemas/migrations, public contracts, guardrail configs, or new dependencies).
+- **Post-L rough-run retro (optional, proposal-only)**: Only after a bumpy L-level run (hit the 3-round breaker, repeated environment friction, or heavy navigation detours), before cleaning `.agent/`, review `.agent/ledger.md`, failed `task-*-report.md`, and key `.agent/logs/` to output 3–5 prioritized repo-environment proposals (navigation hints, deterministic checks, mechanical rules, or `docs/glossary.md` entries). Never auto-edit guardrails/`AGENTS.md` or turn `AGENTS.md` into a verbose lessons log; apply only items approved by the human.
