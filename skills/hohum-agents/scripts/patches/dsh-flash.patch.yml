@@ -1,0 +1,12 @@
+# DeepSeek Harness patch: enable local account credentials in headless & force deepseek-flash
+- id: authorization
+  disabled: false
+- id: credentials
+  disabled: false
+- id: deepseek-account
+  disabled: false
+- id: agent-default-model
+  name: "@deepseek-ai/dsh-agent-default-model"
+  config:
+    provider: deepseek-account
+    model: deepseek-flash

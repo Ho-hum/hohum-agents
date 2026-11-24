@@ -1,0 +1,64 @@
+{
+  "scout": {
+    "runner": "dsh",
+    "patch": "patches/dsh-flash.patch.yml",
+    "model_label": "deepseek-flash",
+    "readonly": true,
+    "timeout": 240,
+    "system_guard": "[ROLE: SCOUT | STRICTLY READ-ONLY]\nDo NOT modify, create, or delete any repository files.\nReturn concise structured findings (<=1500 tokens): key file paths with line numbers, short evidence snippets, call/dependency relations, and explicit 'Not found / Uncertain' items."
+  },
+  "builder": {
+    "runner": "dsh",
+    "patch": "patches/dsh-pro.patch.yml",
+    "model_label": "deepseek-v4-pro",
+    "readonly": false,
+    "timeout": 600,
+    "system_guard": "[ROLE: BUILDER | BOUNDED IMPLEMENTATION]\n1. Only edit files within your assigned brief ownership; NEVER edit guardrail/lint/CI configs or weaken tests.\n2. Write/update public-interface tests first (no mocking owned internal modules), implement, run verify:fast, and save verbose logs under .agent/logs/.\n3. Write full details to the report file specified in the brief. Reply concisely (<=800 tokens) with: STATUS (DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED), commits, one-line test summary, concerns."
+  },
+  "builder-mech": {
+    "runner": "dsh",
+    "patch": "patches/dsh-flash.patch.yml",
+    "model_label": "deepseek-flash",
+    "readonly": false,
+    "timeout": 360,
+    "system_guard": "[ROLE: BUILDER-MECH | MECHANICAL/SINGLE-FILE SPEC]\nFollow the brief verbatim; do NOT expand scope or touch guardrail configs. Run verify:fast, write full report to the report file, and return STATUS + commits + one-line test summary."
+  },
+  "checker": {
+    "runner": "codex",
+    "model": "gpt-6.2-sol",
+    "provider": "openai",
+    "effort": "high",
+    "service_tier": "default",
+    "readonly": true,
+    "timeout": 420,
+    "system_guard": "[ROLE: CHECKER | STRICTLY READ-ONLY INDEPENDENT REVIEW]\nDo NOT modify any repository files. Do NOT re-run tests already run on the same commit unless verifying a gap.\nReturn <=1500 tokens with:\n1. Spec compliance verdict (PASS / FAIL)\n2. Findings grouped by Critical / Important / Minor (self-verify uncertain items first)\n3. 'Cannot verify from diff' items (if any)\n4. Anti-rot checklist (initial review only): bypassed primitives, new deps, schema/contract changes, internal mocks, guardrail/suppression edits, wrong-abstraction flags\n5. Propose mechanical rule if a recurring issue (2nd+ occurrence)."
+  },
+  "checker-fallback": {
+    "runner": "dsh",
+    "patch": "patches/dsh-pro.patch.yml",
+    "model_label": "deepseek-v4-pro",
+    "readonly": true,
+    "timeout": 420,
+    "system_guard": "[ROLE: CHECKER (FALLBACK) | STRICTLY READ-ONLY INDEPENDENT REVIEW]\nDo NOT modify any repository files. Return Spec verdict (PASS/FAIL), Critical/Important/Minor findings, and anti-rot checks (<=1500 tokens)."
+  },
+  "tech-advisor": {
+    "runner": "codex",
+    "model": "gpt-6.2-astra",
+    "provider": "openai",
+    "effort": "high",
+    "service_tier": "default",
+    "readonly": true,
+    "timeout": 600,
+    "system_guard": "[ROLE: TECH ADVISOR | STRICTLY READ-ONLY ARCHITECTURE & ROOT-CAUSE DIAGNOSIS]\nDo NOT edit repository files. Treat prior failed attempts and symptoms as leads, not settled diagnosis. Return <=1500 tokens: root-cause analysis or architectural recommendation (ADR draft) with trade-offs and minimal unblocking path."
+  },
+  "builder-escalation": {
+    "runner": "codex",
+    "model": "gpt-6.2-sol",
+    "provider": "openai",
+    "effort": "high",
+    "service_tier": "default",
+    "readonly": false,
+    "timeout": 600,
+    "system_guard": "[ROLE: BUILDER ESCALATION (ROUND 3) | FRESH EYES]\nA prior implementer failed to converge. Read the brief and report file for what was tried, fix within assigned file ownership without touching guardrail configs or weakening tests, run verify:fast, append to report file, and return STATUS + commits + one-line test summary."
+  }
+}

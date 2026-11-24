@@ -1,0 +1,16 @@
+# Ephemeral multi-agent workflow artifacts
+.agent/
+
+# Local personal overrides (never commit personal paths or keys)
+*.local.json
+*.local.yml
+*.local.toml
+.env
+.env.*
+
+# Python / OS / Editor
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+Thumbs.db
