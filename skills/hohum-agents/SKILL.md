@@ -66,7 +66,7 @@ Keep `.agent/` in `.gitignore` (ephemeral per feature) and long-term architectur
 
 ## 4. Core Execution Discipline
 
-- **Pre-coding (L-level)**: Read the repo before asking. Dependent questions one at a time; independent ones batched (≤3) or stated as explicit assumptions. Never default on the 6 non-defaultable items. Run a context-free **Builder check** on `design.md` before human sign-off.
+- **Pre-coding (L-level)**: Read the repo before asking. Dependent questions one at a time; independent ones batched (≤3) or stated as explicit assumptions. Never default on the 6 non-defaultable items. Run a context-free **Builder check** on `design.md` before human sign-off. After a long design discussion is signed off into `design.md` and `plan.md`, remind the user they may run `/compact` in-place before starting slice execution to clear discussion noise and keep Lead in the smart zone.
 - **Shift-left gates**: `verify:fast` (diff-scoped) MUST pass before invoking Checker. Gate retries count toward the **3-round quality cap**.
 - **Fix loop (cap = 3)**: Rounds 1–2 resume the original Builder (`--session-id`); Round 3 dispatches `builder-escalation` with brief + report file; past Round 3, trip the breaker → Lead adjudicates (with `tech-advisor` if structural) and logs `Ruling:`. Re-reviews are strictly scoped to the fix diff. `Minor` items go to `ledger.md` as `deferred minor`.
 - **Quota / 429 failure**: Treat as infra failure (does NOT consume the 3-round quality cap); switch at most once to a same-tier fallback. If unavailable, pause and inform the human—never silently downgrade Checker/Advisor or skip verification. Clean dirty Builder worktrees back to `BASE` before retrying.
