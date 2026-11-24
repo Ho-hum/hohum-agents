@@ -1,5 +1,7 @@
 # 《多 Agent 协同开发架构规范》逐章参考来源索引
 
+[English](../en/references.md) | **简体中文**
+
 > **对应定稿**：[多 Agent 协同开发架构规范](./architecture.md)
 > **可信度与性质标记**：
 > - `✅ 一手核验`：经典公开原文或直接读取过开源仓库源码；
@@ -73,7 +75,7 @@
 
 | 规范条目 | 主要参考来源 | 标记 | 采纳与裁剪说明 |
 | :--- | :--- | :---: | :--- |
-| **长期资产（`docs/adr/` + 精简 `AGENTS.md`）与临时目录（`.agent/`）分离** | **Anthropic**《Effective harnesses for long-running agents》（持久化 `feature_list` 与 `progress` 文件）<br>**GitHub spec-kit** & **Claude Code best practices**（根指令文件保持精简 ≤60–150 行防指令被忽略）<br>**OpenAI Codex / AGENTS.md 社区规范** | ✅ / 🔧 | 二次复审修补了“合入删除 `.agent/` 导致长期架构决策一并丢失”的漏洞；ADR 仅记难以逆转决策 |
+| **长期资产（`docs/adr/`、`docs/glossary.md` + 精简 `AGENTS.md`）与临时目录（`.agent/`）分离** | **Anthropic**《Effective harnesses for long-running agents》（持久化 `feature_list` 与 `progress` 文件）<br>**GitHub spec-kit** & **Claude Code best practices**（根指令文件保持精简 ≤60–150 行防指令被忽略）<br>**Eric Evans**《Domain-Driven Design》（领域统一语言 Ubiquitous Language）<br>**OpenAI Codex / AGENTS.md 社区规范** | ✅ / 🔧 | 二次复审修补了“合入删除 `.agent/` 导致长期架构决策一并丢失”的漏洞；ADR 仅记难以逆转决策，`docs/glossary.md` 固定于 M/L 级项目首次设计核心数据模型时创建 |
 | **黄金样板 + 遗留代码标记“禁止模仿”** | **OpenAI**《Harness Engineering》（指出 Agent 会模仿仓库既有坏模式导致腐化） | ⚠️ / 🔧 | 二次复审补齐“供给侧”对抗方案，用显式正例与反例隔离阻断负向 Few-shot |
 | **最小 5 要素派发模板 + 账本 + 公开 `Ruling:` 清单** | **obra/superpowers** `SKILL.md` & `references/final-review.md`（用 `progress.md` 账本抵抗上下文压缩后重派已完成任务的惨痛故障；交付时全量列出 `Ruling:` 及判断错误的代价） | ✅ | 确保跨压缩不丢进度、杜绝 Agent 替人类做“秘密决定” |
 
@@ -98,6 +100,7 @@
 | **反模式清单（10 条）** | 汇总 **obra/superpowers** `Common Rationalizations` 表格、**Cognition** 多写者失败分析、**Sandi Metz** 错误抽象警告，以及两轮独立复审暴露的新增反模式（如合并 Reviewer/Advisor、全仓阻断逼越界、mock 内部实现） | ✅ / 🔧 | 将高代价踩坑经验前置为明文禁令 |
 | **“先查 Brief 与路由，再考虑升档”调优铁律** | **UC Berkeley MAST**（四成失败源于规格与编排而非纯模型智商）<br>社区 Multi-Agent 评估最佳实践（缺乏证据首先是 Briefing 问题而非模型问题） | ⚠️ / 🔧 | 避免一遇问题就无脑堆高价模型 |
 | **变更扩散度传感器** | **ThoughtWorks** “Maintainability Sensors”（观测改小需求是否被迫触及越来越多文件，作为架构腐化早期信号） | ⚠️ | 经复审保留 `git log` 可客观计算的“变更扩散度”，降级噪声较大的“修复轮次”指标 |
+| **触发式只提不改环境复盘** | 工程会话后复盘实践（排查仓库导航缺口、缺失的确定性检查与高频摩擦，且严禁自动篡改护栏配置） | ✅ / 🔧 | 仅在坎坷 L 级任务清理 `.agent/` 前触发，严格实行只提不改原则 |
 
 ---
 
@@ -134,5 +137,5 @@
 - **UIUC（Agentless）**：*Agentless: Demystifying LLM-based Software Engineering Agents*（arXiv:2407.01489）
 - **Aider**：*Separating code reasoning and editing*（https://aider.chat/2024/09/26/architect.html）
 - **GitClear**：*AI Copilot Code Quality / Code Churn & Duplication Research*（⚠️ 检索摘要）
-- **经典软件工程著作与原则**：Michael Feathers《Working Effectively with Legacy Code》、Sandi Metz《The Wrong Abstraction》
+- **经典软件工程著作与原则**：Eric Evans《Domain-Driven Design》、Michael Feathers《Working Effectively with Legacy Code》、Sandi Metz《The Wrong Abstraction》
 
