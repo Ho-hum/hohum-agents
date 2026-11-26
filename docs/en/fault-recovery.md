@@ -29,9 +29,9 @@ Whenever any role hits quota exhaustion or rate-limiting mid-run, enforce these 
 2. **No Silent Downgrades or Skipped Verification**
    - If `Checker`, `Tech Advisor`, or `Design Advisor` runs out of quota without a same-tier fallback, Lead is **strictly forbidden** from quietly downgrading to an ultra-lightweight model or skipping verification to "keep moving";
    - Safely pause and wait for quota recovery rather than compromising the quality gate.
-3. **Inspect & Reset Dirty Worktrees—Never Patch Blindly Over Half-Built Code**
-   - After any write-capable role (`Builder`, or `Lead` writing directly on M-level) aborts mid-run, **always run `git status` and `git diff`** before resuming or re-dispatching;
-   - Keep clean intermediate commits that already passed gates; if uncommitted partial edits or broken half-tests remain, **reset the slice's owned files cleanly back to `BASE`** and restart.
+3. **Inspect & Reset Dirty Worktrees Safely—Never Patch Blindly or Wipe Pre-Existing User Edits**
+   - Before dispatching any write-capable role (`Builder`), record any pre-existing uncommitted files (`pre_existing_dirty`); if they overlap the slice's file ownership, pause and confirm with the developer or use an isolated worktree;
+   - After an abort, **always run `git status` and `git diff`** before resuming or re-dispatching: keep clean intermediate commits that already passed gates, discard only confirmed Builder-authored incomplete mutations within the slice's owned files, and **never auto-revert pre-existing or unattributed user modifications**.
 
 ---
 
@@ -101,7 +101,7 @@ flowchart TD
      - Discard uncommitted partial edits after `HEAD`;
      - Dispatch a fresh `Builder` with `task-N-brief.md` + `task-N-report.md` + `git log BASE..HEAD` to finish cleanly from `HEAD`.
   3. **Case C (Dirty uncommitted edits, half-written tests, or broken report):**
-     - **Reset decisively:** Roll back only the slice's owned files to `BASE` (never delete `.agent/` plans or ledgers);
+     - **Reset safely:** Discard only confirmed Builder-authored mutations within the slice's owned files back to `BASE` (never delete `.agent/` plans/ledgers and never auto-revert pre-existing or unattributed user modifications recorded before dispatch);
      - Re-dispatch cleanly from `BASE` on a fallback execution pool, eliminating hidden bugs from patching over broken partial logic.
 
 ### 6. `Lead` Outage (Orchestrator Offline)

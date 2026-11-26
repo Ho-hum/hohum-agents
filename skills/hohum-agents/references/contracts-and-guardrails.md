@@ -53,7 +53,7 @@ Do NOT expand scoped re-reviews with this checklist. Default severity is `Minor`
 
 ## 5. Quota Exhaustion / Dirty Worktree Recovery
 - **Read-only roles (`scout`, `checker`, `tech-advisor`, `design-advisor`)**: Zero workspace side effects. Switch once to same-tier fallback; if unavailable, pause and inform user (never silently downgrade or skip Checker).
-- **Builder**: Inspect `git status` and `git diff` first. Keep clean commits that passed `verify:fast`; discard incomplete uncommitted mutations within the slice's file ownership back to `BASE` before retrying.
+- **Builder**: Before dispatching, record `pre_existing_dirty` (reported automatically by `delegate.py`). If pre-existing uncommitted files overlap the slice's file ownership, pause and ask the human or use an isolated worktree. On failure, inspect `git status` and `git diff` first: keep clean commits that passed `verify:fast`, discard only confirmed Builder-authored incomplete changes within slice ownership, and **never auto-revert pre-existing or unattributed user modifications**.
 - **Lead**: New session reads `.agent/plan.md` + `.agent/ledger.md` + `git log/status`, reconciles any committed-but-unlogged slice, and resumes without re-dispatching completed tasks.
 
 ---

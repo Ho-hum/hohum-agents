@@ -32,8 +32,8 @@ Customize role-to-model routing in `scripts/roles.local.json` (copied from `scri
 
 1. **Smoke-test runners**:
    `python ./scripts/delegate.py --smoke-test`
-2. **Pack review diff** (record `BASE = git rev-parse HEAD` before Builder starts):
-   `python ./scripts/pack_diff.py --cwd <repo> --base <BASE> --head HEAD --out .agent/tasks/task-N-review.diff`
+2. **Pack review diff** (record `BASE = git rev-parse HEAD` before Builder starts; requires clean tree & non-empty committed diff bound to fixed SHAs):
+   `python ./scripts/pack_diff.py --cwd <repo> --base <BASE> --head HEAD --out .agent/tasks/task-N-review.diff [--verify-cmd "<cmd>" --verify-exit-code 0]`
 3. **Dispatch or resume external worker**:
    `python ./scripts/delegate.py --role <role> --cwd <repo> --prompt-file <file> [--session-id <id>]`
 
@@ -69,6 +69,6 @@ Keep `.agent/` in `.gitignore` (ephemeral per feature) and long-term architectur
 - **Pre-coding (L-level)**: Read the repo before asking. Dependent questions one at a time; independent ones batched (≤3) or stated as explicit assumptions. Never default on the 6 non-defaultable items. Run a context-free **Builder check** on `design.md` before human sign-off. After a long design discussion is signed off into `design.md` and `plan.md`, remind the user they may run `/compact` in-place before starting slice execution to clear discussion noise and keep Lead in the smart zone.
 - **Shift-left gates**: `verify:fast` (diff-scoped) MUST pass before invoking Checker. Gate retries count toward the **3-round quality cap**.
 - **Fix loop (cap = 3)**: Rounds 1–2 resume the original Builder (`--session-id`); Round 3 dispatches `builder-escalation` with brief + report file; past Round 3, trip the breaker → Lead adjudicates (with `tech-advisor` if structural) and logs `Ruling:`. Re-reviews are strictly scoped to the fix diff. `Minor` items go to `ledger.md` as `deferred minor`.
-- **Quota / 429 failure**: Treat as infra failure (does NOT consume the 3-round quality cap); switch at most once to a same-tier fallback. If unavailable, pause and inform the human—never silently downgrade Checker/Advisor or skip verification. Clean dirty Builder worktrees back to `BASE` before retrying.
+- **Quota / 429 failure**: Treat as infra failure (does NOT consume the 3-round quality cap); switch at most once to a same-tier fallback. If unavailable, pause and inform the human—never silently downgrade Checker/Advisor or skip verification. Before retrying a failed Builder, discard only confirmed Builder-authored incomplete mutations (never revert `pre_existing_dirty` user edits).
 - **Stop & ask human ONLY on the 5 red lines** (irreversible/destructive, security-sensitive, external side-effects, broken plan where every path is a guess, or touching persistent schemas/migrations, public contracts, guardrail configs, or new dependencies).
 - **Post-L rough-run retro (optional, proposal-only)**: Only after a bumpy L-level run (hit the 3-round breaker, repeated environment friction, or heavy navigation detours), before cleaning `.agent/`, review `.agent/ledger.md`, failed `task-*-report.md`, and key `.agent/logs/` to output 3–5 prioritized repo-environment proposals (navigation hints, deterministic checks, mechanical rules, or `docs/glossary.md` entries). Never auto-edit guardrails/`AGENTS.md` or turn `AGENTS.md` into a verbose lessons log; apply only items approved by the human.
