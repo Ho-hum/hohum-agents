@@ -14,7 +14,7 @@
 | :--- | :--- | :--- | :--- |
 | **S（小活）** | 不询问，直接改 | 仅触发 **5 条红线** 才停 | 交付改动与 `verify:fast` 结果；外部动作（合并/推送）须确认 |
 | **M（常规）** | 需求清晰则不问；仅**涉及 UI/视觉**或需求有关键歧义时确认基调 | 仅触发 **5 条红线** 才停 | 交付改动、验证结果与 `Ruling:` 清单；外部动作须确认 |
-| **L（复杂）** | **强制 3 步交互**：① 澄清歧义 → ② 方案取舍 → ③ 骨架签字 | 仅触发 **5 条红线** 才停（切片间不停、3 轮内自修不停） | **强制验收**：一页变更叙事 + 公开全部 `Ruling:` + 人类三问复述验收 + 外部动作确认 |
+| **L（复杂）** | **强制 4 步交互**：① 澄清歧义（含样例/按需 Spike）→ ② 方案取舍 → ③ 骨架签字 → ④ 切片前确认各角色配置模型 | 仅触发 **5 条红线**、**首个 UI 切片初版截图确认**或**模型/沙盒故障**才停（常规切片间与 3 轮内自修不停） | **强制验收**：一页变更叙事 + 公开全部 `Ruling:` + 人类三问复述验收 + 外部动作确认 |
 
 ### 人类介入决策流
 
@@ -36,18 +36,19 @@ flowchart TD
 仅在 **L 级任务**（或 M 级存在核心歧义 / 面向用户的视觉设计）进入编码前触发，核心目的是把最高代价的返工消灭在写第一行代码之前：
 
 1. **需求澄清（先查后问，依赖题逐个问，按状态收口）**
-   - **先查后问**：仓库、Spec 和已有对话能回答的问题，一律不问；已经拍板的事，不重新打开。
-   - **提问纪律**：每题只问会改变“建什么”或“怎么验收”的问题，附一句“这个答案会改变什么”。互相依赖的问题**逐个问**；互相独立的问题可以合并成一条消息编号提问（≤3），或者直接写成默认假设公开出来。仅当多种合理意图会导致不同设计时才追问目的（Why，且此时不附选项防锚定）。严禁一次抛出长问卷。
+   - **先查后问 + 真实需求来源**：仓库、Spec 和已有对话能回答的问题，一律不问；开局先请开发者提供 **1 份脱敏样例**或用一句话说明**“交付物给谁、对方接着做什么”**；已经拍板的事，不重新打开。
+   - **提问纪律与按需轻工具**：每题只问会改变“建什么”或“怎么验收”的问题，附一句“这个答案会改变什么”。互相依赖的问题**逐个问**；互相独立的问题可以合并成一条消息编号提问（≤3），或者直接写成默认假设公开出来。仅针对会改变方案的未决项，按需选用**输入与交付物对照**、**歧义规则判别例**或**最短操作路径**（直接复用到设计与测试，禁止强制固定多轮填表或单独骨架签字）。仅当多种合理意图会导致不同设计时才追问目的（Why，且此时不附选项防锚定）。
    - **不可默认清单（防沉默同意）**：**数据不可逆语义**（硬删/软删/保留/迁移）、**权限边界**、**对外契约 / Schema 身份规则**、**计费 / 合规**、**非目标**、**验收判据**（模糊词须量化或写成可测用例），这六类必须拿到明确答复，不能用默认假设代替，也不能埋进一长串假设里一起确认；如果要给推荐项，只能推荐保守、可逆的选项。
-   - **按状态收口**：没有会改变构建内容的未决项了就停，不设总题数上限；没问到的列入 `Deferred`。决定性问题超过 5 个，视为任务应拆分的信号。
+   - **按状态收口与签字后变更尺度**：没有会改变构建内容的未决项了就停，不设总题数上限；没问到的列入 `Deferred`。会改变方案的未决问题超过 5 个，视为任务应拆分的信号。签字后若产生新偏好，在 `ledger.md` 记录受影响的契约与验收项并按影响面定向复审。
    - **分段复述 + 即答即落盘**：每理解一块就用 200–300 字复述一次；澄清结论立刻写入 `.agent/design.md`，覆盖矛盾的旧表述；文中明确区分“**开发者原话**”和“**Lead 补充的假设（附理由）**”。
-   - **两个出口**：开发者未主动要求讨论时附一句跳过选项，说“直接干”即可跳过澄清，但所有假设须以 `Ruling:` 形式写入 `design.md`。体验或可行性不确定时，可先做标注为一次性的 **Spike（试验原型）**，想保留产物须重新过设计闸门。
+   - **两个出口（`just build it` 与 A/B/C 一次性 Spike 门禁）**：开发者未主动要求讨论时附一句跳过选项，说“直接干”即可跳过澄清，所有假设以 `Ruling:` 写入 `design.md`。仅当同时满足 **A（两种可能结果会改契约/依赖/核心操作顺序）+ B（查仓库/文档或问人看样例仍无定论，且实验能区分结果）+ C（先写 1 个问题、X/Y 判据与 5–10 分钟上限，且比写首片更省；否则缩小首片并在 `design.md` 标明暂定契约与重开条件）** 时，才做一次性 Spike：纯本地技术实测记 2 行实验卡后可直接跑，需用户试操作或扩预算须先征得同意；原型限于 `.agent/prototype/` 或临时分支，禁止导入、复制或合并原型实现，Builder 只接收写入 `design.md` 的结论与验收样例。
 2. **方案取舍（提供 2–3 个备选方案）**
    - 给出 **2–3 个**结构差异清晰的技术方案，并列明各自利弊、长期维护代价与推荐项，请开发者拍板选定方向。
-3. **骨架签字（Builder check + 人定骨架，AI 填肉）**
+3. **骨架签字与执行前模型确认（Builder check + 人定骨架 + 角色模型确认）**
    - 签字前由一个**完全没有上下文的子 Agent** 对 `.agent/design.md` 做一次 **Builder check**（只问“缺什么才能直接动工”），其中“只有人能答”的问题合并为**一条消息**一次性提问，这也是本轮唯一一次批量追问；
    - 在拆切片派发给 `Builder` 之前，形成 `.agent/design.md` 及核心**接口签名、核心类型定义、持久化 Schema 骨架**，必须经开发者明确确认；
-   - 若任务涉及面向用户的 UI/界面，`Design Advisor` 产出的视觉基调与核心交互规范（`.agent/design-spec.md`）一并在设计阶段确认，避免实现完再大改风格。
+   - 若任务涉及面向用户的 UI/界面，`Design Advisor` 产出的视觉基调与核心交互规范（`.agent/design-spec.md`）一并在设计阶段确认；进入实现后，首个 UI 切片完成构建时先提交桌面/移动初版截图由开发者确认方向，再启动独立视觉盲评与多轮精修；
+   - **签字后、执行 Slice 1 前**：运行冒烟与目标沙盒探针，向开发者列出各角色当前配置的模型与就绪状态，经确认后再开始切片执行。
 
 ---
 
@@ -69,10 +70,10 @@ Lead 触发红线暂停时，**严禁只丢一句报错或开放式问题（如�
 2. **备选方案（2 个）**（标明每个方案的影响面、可逆性与代价）；
 3. **Lead 的推荐方案与理由**（开发者只需回复“选 A / 选 B / 补充意见”即可恢复推进）。
 
-### 补充：基础设施断粮时的暂停边界
-当某角色中途额度耗尽或限流（详见 [额度耗尽与故障恢复推演手册](./fault-recovery.md)）：
-- 若存在同档位备选通道，Lead 直接静默切换 1 次并恢复（不打扰开发者，不扣 3 轮质量配额）；
-- 若无同档位备选或切换后仍失败，**必须暂停通知开发者**切换账号或等待窗口刷新——**严禁为了避免打扰开发者而静默降级模型档位或跳过 `Checker` 验收**。
+### 补充：模型不可用、额度耗尽或沙盒故障时的暂停边界
+当任一角色中途遇到模型不可用、额度耗尽、429 限流或沙盒故障（详见 [额度耗尽与故障恢复推演手册](./fault-recovery.md)）：
+- **不配置同级备选模型，严禁自动切换或静默降级**（该类基础设施中断不扣 3 轮质量配额）；
+- Lead **必须立即暂停**，汇报具体故障与 2–3 个带利弊权衡的可选方案（例如等待限流窗口恢复、由开发者指定替代模型并同步保持 Builder 与 Checker 跨服务商、或仅将沙盒失败的单个工具步骤移交宿主机），等开发者拍板后再继续——**严禁为了避免打扰开发者而悄悄换模型或跳过 `Checker` 验收**。
 
 ---
 
@@ -123,7 +124,7 @@ Lead 触发红线暂停时，**严禁只丢一句报错或开放式问题（如�
   4. Severe plan failure where every path forward is a guess.
   5. Changes to persistent schemas/migrations, external public contracts, guardrail configs (lint/type/arch/CI), or adding a new third-party dependency.
 - **When pausing:** Provide (1) which red line was hit, (2) 2 concrete options with trade-offs, and (3) your recommended choice.
-- **On quota/rate-limit exhaustion:** Treat as infra failure (do not count against the 3-round quality cap), switch at most once to a same-tier fallback; if unavailable, pause and notify the human—never silently downgrade `Checker`/advisors or skip verification. Clean dirty builder worktrees back to `BASE` before retrying.
+- **On model/quota/sandbox failure:** Treat as infra failure (do not count against the 3-round quality cap). No same-tier fallback models are configured—never auto-switch, silently downgrade `Checker`/advisors, or skip verification. Pause immediately with the concrete error and 2–3 actionable options for the human's decision. Clean only confirmed Builder-authored incomplete mutations back to `BASE` before retrying (never revert pre-existing user edits).
 - **On delivery:** Present all recorded `Ruling:` entries verbatim in chronological order, plus a one-page change narrative (boundaries changed, new invariants, rollback path) for L-level tasks.
 ```
 

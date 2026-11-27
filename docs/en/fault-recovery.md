@@ -22,13 +22,13 @@ The deadliest failure in multi-agent workflows is losing progress, looping endle
 
 Whenever any role hits quota exhaustion or rate-limiting mid-run, enforce these three hard rules:
 
-1. **Separate Infrastructure Failures from the Quality Fix Cap**
+1. **Separate Infrastructure Failures from the Quality Fix Cap (No Same-Tier Fallbacks — Pause & Advise)**
    - The **3-round fix circuit breaker** measures code quality and gate convergence only;
-   - Quota exhaustion, HTTP 429 rate limits, and runner timeouts are **infrastructure failures and do NOT consume the 3-round quality cap**;
-   - Infrastructure retries have their own cap: **at most 1 switch to a same-tier fallback**. If the fallback also fails, pause immediately and notify the developer to switch accounts or wait for quota reset—never spin in a tight retry loop.
+   - Quota exhaustion, HTTP 429 rate limits, runner timeouts, and sandbox failures are **infrastructure failures and do NOT consume the 3-round quality cap**;
+   - **No same-tier fallback models are configured for any role, and auto-switching is strictly forbidden.** Whenever a role cannot run, pause immediately and present the exact error plus 2–3 concrete options with trade-offs (e.g., wait for quota reset, switch to a human-approved model while keeping Builder and Checker on different providers, or offload only a failing sandboxed step like `esbuild` to the host), then wait for the developer's decision.
 2. **No Silent Downgrades or Skipped Verification**
-   - If `Checker`, `Tech Advisor`, or `Design Advisor` runs out of quota without a same-tier fallback, Lead is **strictly forbidden** from quietly downgrading to an ultra-lightweight model or skipping verification to "keep moving";
-   - Safely pause and wait for quota recovery rather than compromising the quality gate.
+   - If `Checker`, `Tech Advisor`, or `Design Advisor` becomes unavailable, Lead is **strictly forbidden** from quietly downgrading to a weaker model or skipping verification to "keep moving";
+   - Safely pause for human direction or quota recovery rather than compromising the quality gate.
 3. **Inspect & Reset Dirty Worktrees Safely—Never Patch Blindly or Wipe Pre-Existing User Edits**
    - Before dispatching any write-capable role (`Builder`), record any pre-existing uncommitted files (`pre_existing_dirty`); if they overlap the slice's file ownership, pause and confirm with the developer or use an isolated worktree;
    - After an abort, **always run `git status` and `git diff`** before resuming or re-dispatching: keep clean intermediate commits that already passed gates, discard only confirmed Builder-authored incomplete mutations within the slice's owned files, and **never auto-revert pre-existing or unattributed user modifications**.
@@ -39,17 +39,15 @@ Whenever any role hits quota exhaustion or rate-limiting mid-run, enforce these 
 
 ```mermaid
 flowchart TD
-    E["Role hits quota exhaustion / 429 / crash"] --> T{"Identify interrupted role type"}
-    T -->|"Read-only (Scout / Checker / Advisors)"| RO{"Same-tier fallback available?"}
-    RO -->|"Yes (<=1 switch)"| RE1["Re-dispatch directly (zero side effects, no quality-cap charge)"]
-    RO -->|"No / fallback also fails"| PAUSE["Pause safely & notify user (no silent downgrade)"]
+    E["Role hits model outage / 429 / sandbox failure / crash"] --> T{"Identify interrupted role type"}
+    T -->|"Read-only (Scout / Checker / Advisors)"| PAUSE1["Pause immediately: report error & options (wait / human-approved cross-provider model); never auto-switch or downgrade"]
+    PAUSE1 -->|"Human decides"| RE1["Re-dispatch per human direction (zero side effects, no quality-cap charge)"]
     T -->|"Builder (scoped writer)"| CHK["Lead inspects git status / diff & task-N-report.md"]
     CHK --> D{"Evaluate worktree state"}
-    D -->|"Clean / has verified intermediate commits"| B1{"Same-tier fallback available?"}
-    D -->|"Half-finished / unverified dirty edits"| RST["Reset owned files to BASE (or last clean commit)"] --> B1
-    B1 -->|"Yes (<=1 switch)"| RE2["Re-dispatch cleanly with brief + report (no quality-cap charge)"]
-    B1 -->|"No / fallback also fails"| PAUSE
-    T -->|"Lead (orchestrator offline)"| L1["New session / switch same-tier model takes over"]
+    D -->|"Clean / has verified intermediate commits"| PAUSE2["Pause immediately: report error & options (wait / human-approved coder + cross-provider reviewer / offload failing check only)"]
+    D -->|"Half-finished / unverified dirty edits"| RST["Discard only confirmed Builder-authored mutations back to last clean commit"] --> PAUSE2
+    PAUSE2 -->|"Human decides"| RE2["Re-dispatch cleanly with brief + report per human direction (no quality-cap charge)"]
+    T -->|"Lead (orchestrator offline)"| L1["Human opens new session or switches orchestrator model"]
     L1 --> L2["Read .agent/plan.md + .agent/ledger.md + git log/status"]
     L2 --> L3{"Committed-but-unlogged slice or dirty edits?"}
     L3 -->|"Unlogged commits"| SYNC["Reconcile ledger.md from git log vs. plan.md"] --> CONT["Resume next incomplete step losslessly"]
@@ -66,43 +64,42 @@ flowchart TD
 - **Typical State:** Large-repo scan or log distillation cuts off before returning a summary; `.agent/findings/` may hold partial notes.
 - **Recovery SOP:**
   1. Check `.agent/findings/` for any usable path leads and preserve them as hints;
-  2. Switch once to a same-tier fast lightweight fallback to cover only remaining directories/questions;
-  3. If the remaining scope has narrowed to a few known files, Lead reads them directly instead of re-dispatching.
+  2. Pause and report the failure with options (wait for reset, switch to a human-chosen exploration model, or let Lead read the remaining narrow file set directly).
 
 ### 2. `Checker` Outage
 - **Risk:** Low (zero workspace mutation, high discipline needed against skipping).
 - **Typical State:** `task-N-review.diff` and `task-N-brief.md` remain intact on disk; review output is missing or truncated.
 - **Recovery SOP:**
-  - **Initial slice review / final whole-branch review:** Switch once to a **same-tier or heterogeneous fallback** with the exact same `brief + report + review.diff + global constraints`;
-  - **Scoped re-review:** Re-run with only the incremental fix diff and open findings list;
-  - **Hard Red Line:** If no same-tier fallback is available, pause and wait—**never downgrade tiers or skip review to move to the next slice**.
+  - **Initial slice review / final whole-branch review:** Pause immediately and present options (wait for reset or have the human designate a cross-provider reviewer); once approved, re-run with the exact same `brief + report + review.diff + global constraints`;
+  - **Scoped re-review:** Once approved to resume, re-run with only the incremental fix diff and open findings list;
+  - **Hard Red Line:** **Never auto-switch, downgrade tiers, or skip review to move to the next slice**.
 
 ### 3. `Tech Advisor` Outage
 - **Risk:** Low (zero source mutation).
 - **Typical State:** L-level architecture review or post-circuit-break root-cause diagnosis truncates mid-response.
 - **Recovery SOP:**
-  1. Switch once to an alternative top deep-reasoning fallback with full `.agent/design.md` or complete failure history and ruled-out hypotheses;
-  2. If no other top-tier reasoning pool is available, **pause and inform the developer**—never let a low-tier model rubber-stamp an architecture review.
+  1. Pause immediately and present the error and options to the developer—never auto-downgrade or let a low-tier model rubber-stamp an architecture review;
+  2. Once the developer approves how to proceed, re-run with full `.agent/design.md` or complete failure history and ruled-out hypotheses.
 
 ### 4. `Design Advisor` Outage
 - **Risk:** Low (zero app-source mutation).
 - **Typical State:** Three possible breakpoints—① `.agent/design-spec.md` half-written; ② only part of `.agent/assets/` generated; ③ runtime screenshot Design QA aborted.
 - **Recovery SOP:**
-  1. Partial spec: discard broken tail or instruct a fresh session to complete and validate consistency;
-  2. Partial assets: inventory already-valid files in `.agent/assets/` and generate only the missing assets;
-  3. Aborted Design QA: re-run on the exact same runtime screenshots with a same-tier multimodal fallback.
+  1. Partial spec: pause for human decision, then discard broken tail or complete and validate consistency;
+  2. Partial assets: inventory already-valid files in `.agent/assets/` and generate only the missing assets once resumed;
+  3. Aborted Design QA: pause for human decision, then re-run on the exact same runtime screenshots with the human-approved model.
 
 ### 5. `Builder` Outage (Highest-Frequency Dirty Worktree)
 - **Risk:** Medium (the only subagent that mutates application source).
 - **Three Worktree States & Recovery:**
-  1. **Case A (Zero edits / died while reading):** `git status` is clean—switch once to a same-tier fallback and re-dispatch `task-N-brief.md` without charging the 3-round quality cap.
+  1. **Case A (Zero edits / died while reading):** `git status` is clean—pause and present options (wait for reset, or switch to a human-approved coder while confirming a cross-provider `Checker`); once approved, re-dispatch `task-N-brief.md` without charging the 3-round quality cap.
   2. **Case B (≥1 clean commit already passed `verify:fast`, died during wrap-up or a fix round):**
      - Preserve the verified commits;
      - Discard uncommitted partial edits after `HEAD`;
-     - Dispatch a fresh `Builder` with `task-N-brief.md` + `task-N-report.md` + `git log BASE..HEAD` to finish cleanly from `HEAD`.
+     - Once the developer approves the recovery choice, dispatch with `task-N-brief.md` + `task-N-report.md` + `git log BASE..HEAD` to finish cleanly from `HEAD`.
   3. **Case C (Dirty uncommitted edits, half-written tests, or broken report):**
      - **Reset safely:** Discard only confirmed Builder-authored mutations within the slice's owned files back to `BASE` (never delete `.agent/` plans/ledgers and never auto-revert pre-existing or unattributed user modifications recorded before dispatch);
-     - Re-dispatch cleanly from `BASE` on a fallback execution pool, eliminating hidden bugs from patching over broken partial logic.
+     - Pause and present options to the developer; once approved, re-dispatch cleanly from `BASE`, eliminating hidden bugs from patching over broken partial logic.
 
 ### 6. `Lead` Outage (Orchestrator Offline)
 - **Risk:** Medium-high (halts orchestration, but supports 100% lossless takeover).
@@ -117,9 +114,9 @@ flowchart TD
 
 ---
 
-## 5. Four Proactive Defenses Against Quota Outages
+## 5. Four Proactive Defenses Against Outages & Sandbox Friction
 
 1. **Keep slices small (≤~400 effective LOC):** Smaller slices cap per-run token burn for both `Builder` and `Checker`, keeping rollback cost tiny if an outage strikes.
 2. **Shift-left deterministic gates (`verify:fast`):** Catch formatting, typing, boundary, and unit-test failures locally at zero LLM token cost before waking `Checker`.
-3. **Pre-wire same-tier fallback pools for critical roles:** Keep at least one alternate provider/quota pool ready for `Builder`, `Checker`, and `Tech Advisor` so rolling rate limits never stall delivery.
+3. **Probe target sandboxes & confirm role models before Slice 1:** Run `--smoke-test --probe-sandboxes` after design sign-off and display each role's configured model for explicit human confirmation (with no implicit fallback switches), surfacing shell/`esbuild` constraints before execution begins.
 4. **Enforce S/M/L routing & log offloading:** Keep trivial edits and verbose build logs out of high-tier orchestrator pools, reserving scarce rolling quota for high-leverage design and verification gates.

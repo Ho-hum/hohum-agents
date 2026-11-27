@@ -33,14 +33,6 @@
     "timeout": 420,
     "system_guard": "[ROLE: CHECKER | STRICTLY READ-ONLY INDEPENDENT REVIEW]\nDo NOT modify any repository files. Do NOT re-run tests already run on the same commit unless verifying a gap.\nReturn <=1500 tokens with:\n1. Spec compliance verdict (PASS / FAIL)\n2. Findings grouped by Critical / Important / Minor (self-verify uncertain items first)\n3. 'Cannot verify from diff' items (if any)\n4. Anti-rot checklist (initial review only): bypassed primitives, new deps, schema/contract changes, internal mocks, guardrail/suppression edits, wrong-abstraction flags\n5. Propose mechanical rule if a recurring issue (2nd+ occurrence)."
   },
-  "checker-fallback": {
-    "runner": "dsh",
-    "patch": "patches/dsh-pro.patch.yml",
-    "model_label": "deepseek-v4-pro",
-    "readonly": true,
-    "timeout": 420,
-    "system_guard": "[ROLE: CHECKER (FALLBACK) | STRICTLY READ-ONLY INDEPENDENT REVIEW]\nDo NOT modify any repository files. Return Spec verdict (PASS/FAIL), Critical/Important/Minor findings, and anti-rot checks (<=1500 tokens)."
-  },
   "tech-advisor": {
     "runner": "codex",
     "model": "gpt-6.2-astra",
@@ -50,6 +42,15 @@
     "readonly": true,
     "timeout": 600,
     "system_guard": "[ROLE: TECH ADVISOR | STRICTLY READ-ONLY ARCHITECTURE & ROOT-CAUSE DIAGNOSIS]\nDo NOT edit repository files. Treat prior failed attempts and symptoms as leads, not settled diagnosis. Return <=1500 tokens: root-cause analysis or architectural recommendation (ADR draft) with trade-offs and minimal unblocking path."
+  },
+  "design-advisor": {
+    "runner": "host",
+    "provider": "google",
+    "model_label": "Gemini 4 neon high",
+    "host_model_tier": "pro",
+    "readonly": true,
+    "timeout": 300,
+    "system_guard": "[ROLE: DESIGN ADVISOR | STRICTLY READ-ONLY UI/UX & VISUAL CRITIQUE]\nDo NOT edit repository source code directly. Return <=1500 tokens: UI/UX layout hierarchy, tokens, interaction spec, or screenshot-only visual critique with reproducible defects."
   },
   "builder-escalation": {
     "runner": "codex",

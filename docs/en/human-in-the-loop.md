@@ -14,7 +14,7 @@
 | :--- | :--- | :--- | :--- |
 | **S (Small)** | Do not ask; edit directly | Pause **only on the 5 red lines** | Deliver diff & `verify:fast` result; confirm external actions (merge/push) |
 | **M (Medium)** | Skip if clear; confirm direction only for **UI/visual work** or decisive ambiguity | Pause **only on the 5 red lines** | Deliver diff, verification & `Ruling:` list; confirm external actions |
-| **L (Large)** | **Mandatory 3-step gate:** ① Clarify unknowns → ② Choose approach → ③ Skeleton sign-off | Pause **only on the 5 red lines** (never pause between slices or within 3-round self-fixes) | **Mandatory acceptance:** 1-page change narrative + all `Ruling:` entries + 3-question playback acceptance + external action confirmation |
+| **L (Large)** | **Mandatory 4-step gate:** ① Clarify unknowns (sample/optional Spike) → ② Choose approach → ③ Skeleton sign-off → ④ Confirm configured role models before Slice 1 | Pause on **5 red lines**, **initial screenshot confirmation after first UI slice**, or **model/sandbox failure** (never pause between routine slices or within 3-round self-fixes) | **Mandatory acceptance:** 1-page change narrative + all `Ruling:` entries + 3-question playback acceptance + external action confirmation |
 
 ### Human Intervention Decision Flow
 
@@ -36,18 +36,19 @@ flowchart TD
 Triggered before writing code on **L-level tasks** (or M-level tasks with core ambiguity / user-facing visual design) to eliminate the highest-cost rework before line 1:
 
 1. **Requirement Clarification (Check First, Ask Dependent Questions One-by-One, Close by State)**
-   - **Check before asking:** Never ask what the repository, spec, or prior conversation already answers; never reopen settled decisions.
-   - **Questioning discipline:** Ask only questions that change **what gets built** or **how it is accepted**, with a 1-line note on *what the answer changes*. Ask mutually dependent questions **one at a time**; batch mutually independent questions into one numbered message (≤3) or state them transparently as explicit assumptions. Ask "why" only when multiple reasonable intents lead to different designs (and omit options then to avoid anchoring). Never dump a long questionnaire.
+   - **Check before asking + real source of truth:** Never ask what the repository, spec, or prior conversation already answers; invite the user to share **one redacted sample** or state in one sentence **"who receives the output and what they do next"**; never reopen settled decisions.
+   - **Questioning discipline & on-demand lightweight tools:** Ask only questions that change **what gets built** or **how it is accepted**, with a 1-line note on *what the answer changes*. Ask mutually dependent questions **one at a time**; batch mutually independent questions into one numbered message (≤3) or state them transparently as explicit assumptions. For solution-changing unknowns, pick only the needed tool—**input-to-deliverable contrast**, **discriminating rule examples**, or **shortest user path**—and reuse confirmed artifacts directly in `design.md` and tests (no mandatory multi-round forms or separate breadboard sign-offs). Ask "why" only when multiple reasonable intents lead to different designs (and omit options then to avoid anchoring).
    - **6 Non-Defaultable Items (Anti-Silent-Consent):** **Data irreversibility** (hard vs. soft delete, retention, migration), **permission boundaries**, **public contracts / schema identity**, **billing / quota / PII / compliance**, **non-goals**, and **acceptance criteria** (quantify vague adjectives or write testable cases). Never substitute assumptions for these six or bury them inside a bulk assumptions list; if offering a recommendation, recommend only the conservative, reversible choice.
-   - **Close by state, not a fixed quota:** Stop once no open question can change what gets built; move remaining items to `Deferred`. More than 5 decisive open questions signals the task should be split.
+   - **Close by state & post-sign-off change discipline:** Stop once no open question can change what gets built; move remaining items to `Deferred`. More than 5 solution-changing open questions signals the task should be split. When new preferences arise after sign-off, log impacted contracts and acceptance items in `ledger.md` and re-review strictly scoped to that impact surface.
    - **Chunked playback + write-as-you-go:** Play back understanding in 200–300 words per completed chunk; write confirmed answers directly into `.agent/design.md`, overwriting stale text and explicitly separating **"User's words"** from **"Lead's assumptions (with rationale)"**.
-   - **Two escape hatches:** If the developer did not ask for brainstorming, include an opt-out ("or say 'just build it'"); skipping writes all assumptions as `Ruling:` entries in `design.md`. When UX or feasibility is genuinely unknowable on paper, run a throwaway **Spike**—anything kept from a spike must still pass the design gate.
+   - **Two escape hatches (`just build it` & Throwaway Spike A/B/C Gate):** If the developer did not ask for brainstorming, include an opt-out ("or say 'just build it'"); skipping writes all assumptions as `Ruling:` entries in `design.md`. Run a throwaway **Spike** only when **A (two plausible outcomes change contracts/dependencies/core interaction order) + B (still unresolved via repo/docs or user/sample and an experiment distinguishes them) + C (state 1 question, X/Y rule, and 5–10 min cap cheaper than the first real slice; otherwise shrink the first slice and mark provisional contracts + reopen criteria in `design.md`)** all hold. Pure local technical probes within existing permissions may run after logging a 2-line experiment card; ask the human first whenever user interaction, scope expansion, or extra budget is required. Keep prototypes in `.agent/prototype/` or a throwaway branch; never import, copy, or merge prototype code into production—Builders receive only conclusions and acceptance samples in `design.md`.
 2. **Approach Trade-Offs (2–3 Distinct Options)**
    - Present **2–3** structurally distinct technical approaches with trade-offs, long-term maintenance cost, and a recommended option for the developer to pick.
-3. **Skeleton Sign-Off (`Builder check` + Human Defines Skeleton, AI Fills Flesh)**
+3. **Skeleton Sign-Off & Pre-Execution Model Confirmation**
    - Before human sign-off, run a **context-free subagent** against `.agent/design.md` as a **Builder check** ("what is still missing to start implementing?"); combine its human-only questions into **one single message**—the only batched follow-up in this phase;
    - Finalize `.agent/design.md` plus core **interface signatures, core type definitions, and persistent schema skeletons** for explicit human confirmation before slicing for `Builder`;
-   - For user-facing UI work, confirm `Design Advisor`'s visual direction and core interaction tokens (`.agent/design-spec.md`) at the same design gate.
+   - For user-facing UI work, confirm `Design Advisor`'s visual direction and core interaction tokens (`.agent/design-spec.md`) at the design gate; once the first UI slice builds, present initial desktop/mobile screenshots for human confirmation before running blind visual critiques or multi-round polish;
+   - **After sign-off and before Slice 1:** Run smoke tests and target sandbox probes, display each role's currently configured runner and model, and wait for explicit human confirmation before dispatching slices.
 
 ---
 
@@ -69,10 +70,10 @@ When pausing on a red line, **never drop a raw error or open-ended "what should 
 2. **2 concrete options** (with blast radius, reversibility, and trade-offs);
 3. **Lead's recommended choice & rationale** (so the developer can resume with "Option A / Option B / adjustment").
 
-### Addendum: Pause Boundary on Infrastructure Outages
-When a role hits quota exhaustion or rate limits (see [Fault Recovery Runbook](./fault-recovery.md)):
-- If a same-tier fallback exists, Lead silently switches once and resumes (no user interruption; does not consume the 3-round quality cap);
-- If no same-tier fallback exists or the fallback also fails, **pause and notify the developer** to switch accounts or wait for window reset—**never silently downgrade model tiers or skip `Checker` just to avoid interrupting the user**.
+### Addendum: Pause Boundary on Model, Quota, or Sandbox Outages
+When any role encounters model unavailability, quota exhaustion, HTTP 429 rate limits, or sandbox failure (see [Fault Recovery Runbook](./fault-recovery.md)):
+- **No same-tier fallback models are configured, and auto-switching or silent downgrading is forbidden** (infrastructure failures do not consume the 3-round quality cap);
+- Lead **must pause immediately** and report the concrete error plus 2–3 actionable options with trade-offs (e.g., wait for quota reset, switch to a human-approved model while keeping Builder and Checker on different providers, or offload only a failing sandboxed step to the host), then wait for the developer's decision—**never silently switch models or skip `Checker` just to avoid interrupting the user**.
 
 ---
 
@@ -122,6 +123,6 @@ Copy directly into root `AGENTS.md` or Lead's orchestration instructions:
   4. Severe plan failure where every path forward is a guess.
   5. Changes to persistent schemas/migrations, external public contracts, guardrail configs (lint/type/arch/CI), or adding a new third-party dependency.
 - **When pausing:** Provide (1) which red line was hit, (2) 2 concrete options with trade-offs, and (3) your recommended choice.
-- **On quota/rate-limit exhaustion:** Treat as infra failure (do not count against the 3-round quality cap), switch at most once to a same-tier fallback; if unavailable, pause and notify the human—never silently downgrade `Checker`/advisors or skip verification. Clean dirty builder worktrees back to `BASE` before retrying.
+- **On model/quota/sandbox failure:** Treat as infra failure (do not count against the 3-round quality cap). No same-tier fallback models are configured—never auto-switch, silently downgrade `Checker`/advisors, or skip verification. Pause immediately with the concrete error and 2–3 actionable options for the human's decision. Clean only confirmed Builder-authored incomplete mutations back to `BASE` before retrying (never revert pre-existing user edits).
 - **On delivery:** Present all recorded `Ruling:` entries verbatim in chronological order, plus a one-page change narrative (boundaries changed, new invariants, rollback path) for L-level tasks.
 ```

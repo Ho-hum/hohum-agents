@@ -12,9 +12,9 @@ A model-agnostic **star-topology multi-agent development specification** and **h
 
 - **Lean 4 Core + 2 On-Demand Advisor Roles**: `Lead` (orchestrator), `Scout` (exploration), `Builder` (implementation), and `Checker` (independent verification), complemented by on-demand `Tech Advisor` and `Design Advisor`.
 - **S / M / L Effort-Scaling Routing**: Zero subagent overhead for trivial S-level edits; mandatory design gates, context-free `Builder check`, and human sign-off on interfaces/schemas for complex L-level work.
-- **Clear On-the-Loop Human Boundaries**: Clarify decisive unknowns before coding while protecting **6 non-defaultable items**; execute continuously during delivery and pause **only on 5 red lines**; disclose every autonomous `Ruling:` on handoff.
-- **Long-Term Anti-Rot Guardrails**: Separate ephemeral `.agent/` handoffs from versioned `docs/` truth (including `docs/glossary.md` ubiquitous language), enforce diff-scoped gates, guardrail config write-denial + `suppression` count ratchets, public-interface testing rules, triggered post-L environment retros, and phased static analysis.
-- **Hardened Cross-CLI Bridge (Zero Third-Party Dependencies)**: Standard-library Python 3.10+ wrappers for structured JSONL parsing, `.agent/logs/` offloading, session resumption, pre/post `git status` read-only enforcement, and `--smoke-test` health checks.
+- **Clear On-the-Loop Human Boundaries**: Clarify decisive unknowns (with sample/recipient intake and A/B/C throwaway Spike gate) while protecting **6 non-defaultable items**; confirm configured role models before Slice 1 and initial UI screenshots before visual polish; pause on **5 red lines** or any model/sandbox failure (no auto-switching fallbacks); disclose every autonomous `Ruling:` on handoff.
+- **Long-Term Anti-Rot Guardrails**: Separate ephemeral `.agent/` handoffs from versioned `docs/` truth (including `docs/glossary.md` ubiquitous language), enforce diff-scoped gates, whole-branch final review packages (`--whole-branch`), guardrail config write-denial + `suppression` count ratchets, public-interface testing rules, triggered post-L environment retros, and phased static analysis.
+- **Hardened Cross-CLI Bridge (Zero Third-Party Dependencies)**: Standard-library Python 3.10+ wrappers for structured JSONL parsing, `.agent/logs/` offloading, session resumption, pre/post `git status` read-only enforcement, and `--smoke-test --probe-sandboxes` target-sandbox diagnostics.
 
 ---
 

@@ -83,41 +83,49 @@ Lead classifies each task at intake (any single trigger from a higher tier upgra
 
 ```mermaid
 flowchart TD
-    A["User Request"] --> B["Clarification (check repo first / 1-by-1 for dependent Qs / 6 non-defaultables)"]
-    B --> C["Present 2-3 Approaches & Trade-offs"]
+    A["User Request"] --> B["Clarification (check repo + redacted sample/recipient + 6 non-defaultables + on-demand tools)"]
+    B --> SP{"Meets Spike A+B+C Gate?"}
+    SP -->|"No"| C["Present 2-3 Approaches & Trade-offs"]
+    SP -->|"Yes (cheaper than first slice)"| SK["Throwaway Spike (.agent/prototype/, carry conclusions & samples only to design.md)"] --> C
     C --> D["design.md + Builder Check + Interface/Schema Skeleton (User Sign-off)"]
     D --> E1["Tech Advisor: Architecture Review (read-only, top tier)"]
     D -.->|"If UI/Visual"| E2["Design Advisor: design-spec.md & Visual Assets"]
-    E1 --> F["Lead authors plan.md (slices <=~400 LOC / global constraints / acceptance / ownership)"]
+    E1 --> F["Lead authors plan.md (slices <=~400 LOC; first UI slice = thin route + full path)"]
     E2 -.-> F
-    F --> G["Consistency Pre-check (Spec / Plan / Tasks coverage & conflict scan)"]
+    F --> G["Sandbox Probe + Human Confirmation of Configured Role Models (optional /compact)"]
     G --> H["Builder implements Slice N (test-first + commit)"]
     H --> V{"Deterministic Gate verify:fast (diff-scoped)"}
     V -->|"Red (counts toward 3-round cap)"| H
     V -->|"Green"| PK["pack-diff builds review.diff"] --> I["Checker Initial Review (Spec + Quality/Anti-Rot Checklist)"]
-    I -->|"Pass"| J["Run verify:full + Update ledger.md"]
+    I -->|"Pass"| U{"First UI Slice Just Completed?"}
     I -->|"Spec miss / Critical / Important"| K{"Unified Fix Loop (incl. gate retries, cap = 3)"}
     K -->|"Rounds 1-2"| H2["Resume original Builder (reuse context & cache)"] --> R["Scoped Re-review (fix diff only)"]
     K -->|"Round 3"| H3["Escalate to higher-tier fresh Builder (with report file)"] --> R
-    R -->|"Pass"| J
-    R -->|"Still failing"| BR["Circuit Break: Lead rules, invoking Tech Advisor if needed"] --> J
+    R -->|"Pass"| U
+    R -->|"Still failing"| BR["Circuit Break: Lead rules, invoking Tech Advisor if needed"] --> U
+    U -->|"Yes"| SHOT["Build & capture initial desktop/mobile screenshots (empty+filled) -> human confirms before visual critique/polish"] --> J["Update ledger.md"]
+    U -->|"No"| J
     J -->|"More slices"| H
-    J -->|"All slices done"| FR["Whole-Branch Final Review (top Checker + deferred minors + Design QA)"]
-    FR -->|"If simplify edits source"| RT["Retest + Incremental Re-review"] --> Z["Deliver + Public Rulings + Human Playback Acceptance"]
-    FR -->|"No edits"| Z
+    J -->|"All slices done"| VF["Run verify:full on final candidate commit"]
+    VF -->|"Red"| H
+    VF -->|"Green"| FR["pack-diff --whole-branch Final Review (cross-slice dataflows + Coverage Scope)"]
+    FR -->|"Code edits needed"| H
+    FR -->|"PASS (same verified commit)"| Z["Deliver + Public Rulings + Human Playback Acceptance"]
 ```
 
 ### 5.2 Core Flow & Gate Rules
 1. **Lean Deterministic Shift-Left Gates:**
    - Offload fixed, zero-variance checks to deterministic scripts/hooks; keep only three dumb nodes: **tiered `verify:fast / verify:full`**, **`pack-diff`**, and **"red gate blocks invoking Checker"**.
+   - If a single sandboxed tool fails (e.g. `esbuild` `EPERM`), propose offloading only that failing step to the host while keeping working sandbox static checks (such as typecheck/lint) intact—never ban all sandbox checks globally.
    - **Diff-Scoped Blocking:** Every automated gate blocks **only violations introduced by the current diff**. Never let pre-existing tech debt force Builder outside its file ownership; log pre-existing issues for future refactoring.
    - **Unified Retry Cap:** Self-fixes triggered by gate failures and fixes triggered by Checker share the **3-round total cap**. Exceeding the cap immediately emits `BLOCKED` for Lead intervention (quarantine flaky tests before debugging).
 2. **Author Fixes Own Code:** On M-level tasks, Lead writes and fixes; on L-level tasks, Builder writes and the original Builder is resumed to fix—Lead never edits code directly inside an L-level loop.
-3. **Severity-Graded Fix Loop:**
+3. **First UI Slice & Initial Screenshot Gate:** UI slices stay within the ~400-LOC budget. Place a **thin runnable route + one end-to-end user path** into the **first UI slice** so the first build verifies production output, framework config drift, and desktop/mobile empty + filled states together. **Always show initial screenshots to the human for confirmation before starting blind visual critiques or multi-round polish**; drive rework by reproducible defects (escalate rubric disagreement to the human; keep blind critics fresh and reuse the fixer session).
+4. **Severity-Graded Fix Loop:**
    - `Minor` items never enter the fix loop; log them in `ledger.md` as `deferred minor` for final whole-branch disposition.
    - Only `Spec mismatch`, `Critical`, `Important`, or confirmed `⚠️ Cannot verify` findings trigger the fix loop.
    - **Scoped Re-review:** Re-reviews inspect **only the incremental fix diff**. Incidental out-of-scope findings go to the ledger without extending the current loop.
-4. **Checker Initial-Review Anti-Rot Checklist** *(first review only—never carry into scoped re-reviews)*:
+5. **Checker Initial-Review Anti-Rot Checklist & Whole-Branch Final Review Contract** *(initial checklist never enters scoped re-reviews)*:
    - Did the change bypass existing repository primitives or golden exemplars?
    - Did it introduce a new third-party dependency without a `Ruling`?
    - Did it touch persistent schemas / migrations / public contracts without human approval?
@@ -126,9 +134,10 @@ flowchart TD
    - Did it introduce a flag-parameter wrong abstraction chasing premature DRY?
    - If `docs/glossary.md` exists, did it introduce any listed "aliases to avoid" or drift from canonical project domain terms?
    - *Grading Rule:* Default to `Minor`; escalate immediately to blocking `Important` when touching schemas/contracts/guardrails/test integrity. **If the same defect recurs a 2nd time in the repo, explicitly tag "Propose promoting to a mechanical rule".**
-5. **Simplification Safety Red Line:** Simplification must strictly preserve observable behavior, error handling, boundary checks, and security checks. Any source edit requires re-running verification and an incremental re-review.
-6. **No Prejudiced Prompts & Anti-Cheat Verification:** Never write "do not flag X" in Checker prompts. Checker does not re-run tests Builder already passed on the same commit, but **must inspect test file diffs**.
-7. **Quota Exhaustion & Infrastructure Outage Recovery** *(see [Fault Recovery Runbook](./fault-recovery.md))*: Quota exhaustion, 429 rate limits, and runner timeouts are infrastructure failures—they **do not consume the 3-round quality cap**, but are independently capped at **1 switch to a same-tier fallback** (if still unavailable, pause and notify the user). **Never silently downgrade `Checker`/advisors or skip verification.** After a Builder outage, inspect `git status / diff` first and reset dirty half-finished edits back to `BASE` before retrying cleanly.
+   - *Whole-Branch Final Review Contract:* Always build the final package with `pack_diff --whole-branch --base <BRANCH_BASE> --head HEAD --dataflow ...` containing the complete commit history and file inventory (never treat a last-slice diff as whole-branch evidence). Checker spot-checks cross-slice contracts along critical end-to-end dataflows in live files and explicitly discloses **Coverage Scope** (directly inspected vs. relied on via prior slice reviews/tests).
+6. **Simplification & Post-Edit Re-Verification Loop:** Any source edit from simplification, visual polish, or whole-branch review MUST re-run `verify:full` (and re-check impacted areas) so the delivered commit is the exact verified green commit.
+7. **No Prejudiced Prompts & Anti-Cheat Verification:** Never write "do not flag X" in Checker prompts. Checker does not re-run tests Builder already passed on the same commit, but **must inspect test file diffs**.
+8. **Model / Quota / Sandbox Outage Recovery (No Same-Tier Fallbacks)** *(see [Fault Recovery Runbook](./fault-recovery.md))*: Quota exhaustion, 429 rate limits, runner timeouts, and sandbox failures are infrastructure failures—they **do not consume the 3-round quality cap**. **No same-tier fallback models are configured, and auto-switching or silent downgrading is strictly forbidden.** Pause immediately, present the exact error and concrete options for human decision (if the human chooses a different Builder, confirm a cross-provider independent Checker). After a Builder outage, inspect `git status / diff` first and discard only confirmed Builder-authored incomplete edits without auto-reverting pre-existing user files.
 
 ---
 

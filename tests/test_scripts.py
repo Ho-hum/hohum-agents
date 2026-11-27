@@ -96,11 +96,36 @@ def _run_delegate(
 class TestDelegateParsersAndConfig(unittest.TestCase):
     def test_load_example_roles(self) -> None:
         roles = delegate.load_roles(SCRIPTS_DIR / "roles.example.json")
-        for expected in ("scout", "builder", "builder-mech", "checker", "tech-advisor", "builder-escalation"):
+        for expected in ("scout", "builder", "builder-mech", "checker", "tech-advisor", "design-advisor", "builder-escalation"):
             self.assertIn(expected, roles)
+        self.assertNotIn("checker-fallback", roles)
         self.assertTrue(roles["scout"]["readonly"])
         self.assertTrue(roles["checker"]["readonly"])
+        self.assertTrue(roles["design-advisor"]["readonly"])
+        self.assertEqual(roles["design-advisor"]["runner"], "host")
         self.assertFalse(roles["builder"]["readonly"])
+
+    def test_configured_roles_and_no_auto_switch_advice(self) -> None:
+        roles = delegate.load_roles(SCRIPTS_DIR / "roles.example.json")
+        ready = {k: True for k in roles}
+        probes = {
+            "builder": {"ok": False, "write_ok": True, "shell_ok": False, "esbuild_ok": None, "detail": "pwsh 0xC0000142"},
+            "builder-escalation": {"ok": True, "write_ok": True, "shell_ok": True, "esbuild_ok": False, "detail": "esbuild EPERM"},
+            "checker": {"ok": True, "read_ok": True, "shell_ok": True, "detail": "ok"},
+            "scout": {"ok": True, "read_ok": True, "shell_ok": False, "detail": "read ok"},
+        }
+        configured, advice = delegate._build_configured_roles_and_advice(roles, ready, probes)
+        self.assertEqual(len(configured), 7)
+        self.assertFalse(advice["auto_switch"])
+        self.assertTrue(advice["human_decision_required"])
+        failed_names = {f["role"] for f in advice["failed_roles"]}
+        self.assertIn("builder", failed_names)
+        self.assertIn("builder-mech", failed_names)
+        self.assertNotIn("builder-mech", advice["usable_coders"])
+        self.assertIn("design-advisor", advice["usable_reviewers"])
+        self.assertNotIn("design-advisor", delegate._select_probe_roles(roles, None))
+        self.assertTrue(any("Pause and ask human" in s for s in advice["suggestions"]))
+        self.assertTrue(any("esbuild" in s for s in advice["suggestions"]))
 
     def test_parse_dsh_jsonl_success(self) -> None:
         sample = "\n".join(
@@ -415,6 +440,12 @@ print(json.dumps({"type": "final", "sessionId": "dsh-1", "text": "STATUS: DONE"}
         self.assertTrue(out["ok"])
         self.assertEqual(out["pre_existing_dirty"], ["user_wip.txt"])
 
+    def test_host_runner_role_returns_clear_guidance(self) -> None:
+        rc, out = _run_delegate(self.repo, "design-advisor")
+        self.assertNotEqual(rc, 0)
+        self.assertFalse(out["ok"])
+        self.assertIn("runner='host'", out["error"])
+
 
 class TestPackDiff(unittest.TestCase):
     def test_pack_diff_on_real_temp_repo(self) -> None:
@@ -515,6 +546,85 @@ class TestPackDiff(unittest.TestCase):
             pkg = out_file.read_text(encoding="utf-8")
             self.assertIn("Verify Command: `pytest -q`", pkg)
             self.assertIn("Working Tree: CLEAN", pkg)
+
+    def test_pack_diff_whole_branch_inventory_and_single_commit_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            branch_base = _init_repo(repo)
+            (repo / "src").mkdir()
+            (repo / "src" / "a.py").write_text("a = 1\n", encoding="utf-8")
+            _git(repo, "add", "src/a.py")
+            _git(repo, "commit", "-m", "slice 1")
+            slice1_sha = _git(repo, "rev-parse", "HEAD")
+
+            (repo / "src" / "b.py").write_text("b = 2\n", encoding="utf-8")
+            _git(repo, "add", "src/b.py")
+            _git(repo, "commit", "-m", "slice 2")
+            head_sha = _git(repo, "rev-parse", "HEAD")
+
+            out_full = repo / ".agent" / "tasks" / "final-branch-review.md"
+            res = subprocess.run(
+                [
+                    sys.executable,
+                    str(PACK_DIFF_PY),
+                    "--whole-branch",
+                    "--no-diff",
+                    "--cwd",
+                    str(repo),
+                    "--base",
+                    branch_base,
+                    "--head",
+                    "HEAD",
+                    "--dataflow",
+                    "input -> transform -> export",
+                    "--out",
+                    str(out_full),
+                    "--json",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res.returncode, 0, msg=res.stderr)
+            meta = json.loads(res.stdout)
+            self.assertTrue(meta["whole_branch"])
+            self.assertEqual(meta["commit_count"], 2)
+            self.assertEqual(meta["base_sha"], branch_base)
+            self.assertEqual(meta["head_sha"], head_sha)
+            self.assertNotIn("single_commit_warning", meta)
+            body = out_full.read_text(encoding="utf-8")
+            self.assertIn("# Whole-Branch Final Review Package", body)
+            self.assertIn("input -> transform -> export", body)
+            self.assertIn("Coverage Scope", body)
+            self.assertIn("src/a.py", body)
+            self.assertIn("src/b.py", body)
+
+            # Misusing last-slice base triggers single_commit_warning
+            out_warn = repo / ".agent" / "tasks" / "warn-review.md"
+            res_warn = subprocess.run(
+                [
+                    sys.executable,
+                    str(PACK_DIFF_PY),
+                    "--whole-branch",
+                    "--no-diff",
+                    "--cwd",
+                    str(repo),
+                    "--base",
+                    slice1_sha,
+                    "--head",
+                    "HEAD",
+                    "--out",
+                    str(out_warn),
+                    "--json",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res_warn.returncode, 0, msg=res_warn.stderr)
+            meta_warn = json.loads(res_warn.stdout)
+            self.assertIn("single_commit_warning", meta_warn)
+            self.assertIn("SCOPE WARNING", out_warn.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
