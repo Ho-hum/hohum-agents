@@ -64,6 +64,7 @@ Do NOT expand scoped re-reviews with this checklist. Default severity is `Minor`
 ### Whole-Branch Final Review Contract
 - Always generate the final review packet with `pack_diff.py --whole-branch --base <BRANCH_BASE> --head HEAD --dataflow "<flow>"` (never label a last-slice diff as whole-branch evidence).
 - Checker must spot-check cross-slice contracts along the listed end-to-end dataflows in live repo files and explicitly report **Coverage Scope** (directly inspected vs. relied on via prior slice reviews/tests).
+- Record every sign-off/closeout in `ledger.md` with fixed `base..head` SHAs (never floating `..HEAD`), the verification log path, Checker's directly inspected scope, and any uncovered range; whenever the delivered SHA moves, re-verify and re-review strictly scoped to the impact surface (while preserving L-level whole-branch final review).
 
 ---
 
@@ -80,3 +81,4 @@ Do NOT expand scoped re-reviews with this checklist. Default severity is `Minor`
 - **Inputs**: `.agent/ledger.md`, reworked `task-*-report.md`, and key error excerpts from `.agent/logs/` (audit **process & repo friction**, not the final code diff).
 - **Check 3 areas**: (1) navigation gaps (`AGENTS.md` / `docs/ARCHITECTURE.md` pointers), (2) missing deterministic checks (`verify:fast` / lint / types), (3) recurring patterns to promote to mechanical rules or `docs/glossary.md`.
 - **Proposal-only**: Output at most 3–5 prioritized proposals; prefer deterministic checks/pointers over adding prose warnings to `AGENTS.md`. Never edit `AGENTS.md`, CI, or guardrails without explicit human approval.
+- **`.agent/` closeout**: On feature delivery, migrate still-valid architectural rulings into `docs/ARCHITECTURE.md` or `docs/adr/`, assign an explicit home for open/deferred items, and archive or clear `.agent/` (leave transient runner/infra rulings in the archive rather than long-term docs).
